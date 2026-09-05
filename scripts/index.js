@@ -5,9 +5,7 @@ const canvasC = document.getElementById('c');
 const confettiCanvas = document.getElementById('confetti');
 
 const config = {
-  // Temporary test value. Because this date is already passed, the page will
-  // still show a visible 5-second countdown before revealing the gift box.
-  birthdate: '2026-09-05T00:00:00+07:00',
+  birthdate: '2026-09-06T00:00:00+07:00',
   name: 'Regina Septianadrah'
 };
 
