@@ -23,6 +23,7 @@ const minute = second * 60;
 const hour = minute * 60;
 const day = hour * 24;
 const expiredCountdownDuration = 5 * second;
+const textHoldDuration = 5 * second;
 const balloonSceneDuration = 5 * second;
 
 const pageLoadedAt = Date.now();
@@ -153,7 +154,9 @@ function startAnimation() {
   let currentSceneIndex = 0;
   let letters = [];
   let sceneTransitioning = false;
+  let textHoldStartedAt = null;
   let balloonPhaseStartedAt = null;
+  let balloonsReleased = false;
 
   const opts = {
     strings: scenes[currentSceneIndex],
@@ -181,7 +184,6 @@ function startAnimation() {
     fireworkShardAddedSize: 3,
     gravity: 0.1,
     upFlow: -0.1,
-    letterContemplatingWaitTime: 300,
     balloonSpawnTime: 20,
     balloonBaseInflateTime: 10,
     balloonAddedInflateTime: 10,
@@ -244,6 +246,28 @@ function startAnimation() {
     this.lineWidth =
       opts.fireworkBaseLineWidth + opts.fireworkAddedLineWidth * Math.random();
     this.prevPoints = [[0, hh, 0]];
+  };
+
+  Letter.prototype.startBalloon = function() {
+    if (this.phase !== 'contemplate') return;
+
+    this.phase = 'balloon';
+    this.tick = 0;
+    this.spawning = true;
+    this.spawnTime = (opts.balloonSpawnTime * Math.random()) | 0;
+    this.inflating = false;
+    this.inflateTime =
+      (opts.balloonBaseInflateTime + opts.balloonAddedInflateTime * Math.random()) | 0;
+    this.size =
+      (opts.balloonBaseSize + opts.balloonAddedSize * Math.random()) | 0;
+
+    const rad =
+      opts.balloonBaseRadian + opts.balloonAddedRadian * Math.random();
+    const vel =
+      opts.balloonBaseVel + opts.balloonAddedVel * Math.random();
+
+    this.vx = Math.cos(rad) * vel;
+    this.vy = Math.sin(rad) * vel;
   };
 
   Letter.prototype.step = function() {
@@ -320,8 +344,6 @@ function startAnimation() {
         }
       }
     } else if (this.phase === 'contemplate') {
-      ++this.tick;
-
       if (this.circleCreating) {
         ++this.tick2;
         const proportion = this.tick2 / this.circleCompleteTime;
@@ -369,26 +391,6 @@ function startAnimation() {
           this.shards.splice(i, 1);
           --i;
         }
-      }
-
-      if (this.tick > opts.letterContemplatingWaitTime) {
-        this.phase = 'balloon';
-        this.tick = 0;
-        this.spawning = true;
-        this.spawnTime = (opts.balloonSpawnTime * Math.random()) | 0;
-        this.inflating = false;
-        this.inflateTime =
-          (opts.balloonBaseInflateTime + opts.balloonAddedInflateTime * Math.random()) | 0;
-        this.size =
-          (opts.balloonBaseSize + opts.balloonAddedSize * Math.random()) | 0;
-
-        const rad =
-          opts.balloonBaseRadian + opts.balloonAddedRadian * Math.random();
-        const vel =
-          opts.balloonBaseVel + opts.balloonAddedVel * Math.random();
-
-        this.vx = Math.cos(rad) * vel;
-        this.vy = Math.sin(rad) * vel;
       }
     } else if (this.phase === 'balloon') {
       ctx.strokeStyle = this.lightColor.replace('light', 80);
@@ -527,7 +529,9 @@ function startAnimation() {
   function buildScene(sceneIndex) {
     configureScene(sceneIndex);
     letters = [];
+    textHoldStartedAt = null;
     balloonPhaseStartedAt = null;
+    balloonsReleased = false;
 
     for (let i = 0; i < opts.strings.length; ++i) {
       const line = opts.strings[i];
@@ -571,17 +575,33 @@ function startAnimation() {
       letters[i].step();
     }
 
-    const allBalloonsStarted =
+    const allTextReady =
       letters.length > 0 &&
-      letters.every(letter => letter.phase === 'balloon' || letter.phase === 'done');
+      letters.every(
+        letter =>
+          letter.phase === 'contemplate' &&
+          !letter.circleCreating &&
+          !letter.circleFading
+      );
 
-    if (allBalloonsStarted && balloonPhaseStartedAt === null) {
+    if (allTextReady && textHoldStartedAt === null && !balloonsReleased) {
+      textHoldStartedAt = Date.now();
+    }
+
+    if (
+      textHoldStartedAt !== null &&
+      !balloonsReleased &&
+      Date.now() - textHoldStartedAt >= textHoldDuration
+    ) {
+      letters.forEach(letter => letter.startBalloon());
+      balloonsReleased = true;
       balloonPhaseStartedAt = Date.now();
     }
 
     ctx.translate(-hw, -hh);
 
     if (
+      balloonsReleased &&
       balloonPhaseStartedAt !== null &&
       Date.now() - balloonPhaseStartedAt >= balloonSceneDuration
     ) {
