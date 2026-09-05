@@ -4,7 +4,7 @@ const giftbox = document.getElementById('merrywrap');
 const canvasC = document.getElementById('c');
 
 const config = {
-  birthdate: 'Jan 29, 2020',
+  birthdate: '2026-09-06T00:00:00+07:00',
   name: 'Darlene'
 };
 
@@ -26,7 +26,7 @@ const second = 1000,
   hour = minute * 60,
   day = hour * 24;
 
-let countDown = new Date(`${config.birthdate} 00:00:00`).getTime();
+let countDown = new Date(config.birthdate).getTime();
 x = setInterval(function() {
   let now = new Date().getTime(),
     distance = countDown - now;
@@ -348,7 +348,7 @@ x = setInterval(function() {
 
   function Shard(x, y, vx, vy, color) {
     let vel =
-      opts.fireworkShardBaseVel + opts.fireworkShardAddedVel * Math.random();
+      opts.fireworkShardBaseVel + opts.fireworkAddedVel * Math.random();
 
     this.vx = vx * vel;
     this.vy = vy * vel;
