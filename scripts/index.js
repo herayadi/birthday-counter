@@ -348,7 +348,7 @@ x = setInterval(function() {
 
   function Shard(x, y, vx, vy, color) {
     let vel =
-      opts.fireworkShardBaseVel + opts.fireworkAddedVel * Math.random();
+      opts.fireworkShardBaseVel + opts.fireworkShardAddedVel * Math.random();
 
     this.vx = vx * vel;
     this.vy = vy * vel;
