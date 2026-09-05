@@ -4,7 +4,7 @@ const giftbox = document.getElementById('merrywrap');
 const canvasC = document.getElementById('c');
 
 const config = {
-  birthdate: '2026-09-06T00:00:00+07:00',
+  birthdate: '2026-09-05T22:47:00+07:00',
   name: 'Regina Septianadrah'
 };
 
