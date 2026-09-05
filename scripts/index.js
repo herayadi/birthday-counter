@@ -2,20 +2,39 @@ const count = document.getElementById('count');
 const head = document.getElementById('head');
 const giftbox = document.getElementById('merrywrap');
 const canvasC = document.getElementById('c');
+const confettiCanvas = document.getElementById('confetti');
 
 const config = {
   // Temporary test value. Because this date is already passed, the page will
-  // still show a 5-second countdown before revealing the gift box.
+  // still show a visible 5-second countdown before revealing the gift box.
   birthdate: '2026-09-05T00:00:00+07:00',
   name: 'Regina Septianadrah'
 };
 
 const scenes = [
-  ['HAPPY', 'BIRTHDAY!', config.name],
+  ['HAPPY', 'BIRTHDAY!', 'Regina', 'Septianadrah'],
   ['Another year of', 'you, and another', 'year for me to be', 'grateful that I', 'have you in my life.'],
   ['Semoga semua', 'hal baik selalu', 'menemukan jalannya', 'menuju kamu.'],
   ['Keep smiling,', 'keep growing,', 'and stay being', 'the Regina that', 'I love. ❤️']
 ];
+
+const second = 1000;
+const minute = second * 60;
+const hour = minute * 60;
+const day = hour * 24;
+const expiredCountdownDuration = 5 * second;
+const balloonSceneDuration = 5 * second;
+
+const pageLoadedAt = Date.now();
+const configuredTarget = new Date(config.birthdate).getTime();
+const countDown =
+  configuredTarget <= pageLoadedAt
+    ? pageLoadedAt + expiredCountdownDuration
+    : configuredTarget;
+
+let countdownTimer = null;
+let giftInitialized = false;
+let animationStarted = false;
 
 function hideEverything() {
   head.style.display = 'none';
@@ -24,29 +43,32 @@ function hideEverything() {
   canvasC.style.display = 'none';
 }
 
+function prepareLayers() {
+  count.style.position = 'relative';
+  count.style.zIndex = '30';
+  count.style.width = '100%';
+
+  if (confettiCanvas) {
+    confettiCanvas.style.zIndex = '0';
+    confettiCanvas.style.pointerEvents = 'none';
+  }
+
+  canvasC.style.zIndex = '5';
+  giftbox.style.zIndex = '10';
+}
+
 hideEverything();
+prepareLayers();
 
 const confettiSettings = { target: 'confetti' };
 const confetti = new window.ConfettiGenerator(confettiSettings);
 confetti.render();
 
-const second = 1000;
-const minute = second * 60;
-const hour = minute * 60;
-const day = hour * 24;
-
-const pageLoadedAt = Date.now();
-const configuredTarget = new Date(config.birthdate).getTime();
-const countDown = configuredTarget <= pageLoadedAt
-  ? pageLoadedAt + 5 * second
-  : configuredTarget;
-
-let countdownTimer = null;
-let giftInitialized = false;
-let animationStarted = false;
-
 function renderCountdown() {
   const distance = countDown - Date.now();
+
+  giftbox.style.display = 'none';
+  canvasC.style.display = 'none';
 
   if (distance <= 0) {
     document.getElementById('day').innerText = '0';
@@ -56,6 +78,7 @@ function renderCountdown() {
 
     if (countdownTimer) {
       clearInterval(countdownTimer);
+      countdownTimer = null;
     }
 
     showGiftBox();
@@ -73,14 +96,14 @@ function renderCountdown() {
   document.getElementById('minute').innerText = minutes;
   document.getElementById('second').innerText = seconds;
 
-  head.style.display = 'initial';
-  count.style.display = 'initial';
+  head.style.display = 'block';
+  count.style.display = 'block';
 }
 
 function showGiftBox() {
   head.style.display = 'none';
   count.style.display = 'none';
-  giftbox.style.display = 'initial';
+  giftbox.style.display = 'block';
 
   if (giftInitialized) return;
   giftInitialized = true;
@@ -108,7 +131,7 @@ function showGiftBox() {
   function startGiftSequence() {
     box.removeEventListener('click', startGiftSequence, false);
     openBox();
-    canvasC.style.display = 'initial';
+    canvasC.style.display = 'block';
     setTimeout(startAnimation, 1500);
   }
 
@@ -116,7 +139,7 @@ function showGiftBox() {
 }
 
 renderCountdown();
-countdownTimer = setInterval(renderCountdown, 250);
+countdownTimer = setInterval(renderCountdown, 100);
 
 function startAnimation() {
   if (animationStarted) return;
@@ -130,6 +153,7 @@ function startAnimation() {
   let currentSceneIndex = 0;
   let letters = [];
   let sceneTransitioning = false;
+  let balloonPhaseStartedAt = null;
 
   const opts = {
     strings: scenes[currentSceneIndex],
@@ -503,6 +527,7 @@ function startAnimation() {
   function buildScene(sceneIndex) {
     configureScene(sceneIndex);
     letters = [];
+    balloonPhaseStartedAt = null;
 
     for (let i = 0; i < opts.strings.length; ++i) {
       const line = opts.strings[i];
@@ -523,6 +548,17 @@ function startAnimation() {
     }
   }
 
+  function moveToNextScene() {
+    if (sceneTransitioning) return;
+
+    sceneTransitioning = true;
+    setTimeout(function() {
+      currentSceneIndex = (currentSceneIndex + 1) % scenes.length;
+      buildScene(currentSceneIndex);
+      sceneTransitioning = false;
+    }, 350);
+  }
+
   function anim() {
     window.requestAnimationFrame(anim);
 
@@ -531,25 +567,26 @@ function startAnimation() {
 
     ctx.translate(hw, hh);
 
-    let done = letters.length > 0;
-
     for (let i = 0; i < letters.length; ++i) {
       letters[i].step();
-      if (letters[i].phase !== 'done') {
-        done = false;
-      }
+    }
+
+    const allBalloonsStarted =
+      letters.length > 0 &&
+      letters.every(letter => letter.phase === 'balloon' || letter.phase === 'done');
+
+    if (allBalloonsStarted && balloonPhaseStartedAt === null) {
+      balloonPhaseStartedAt = Date.now();
     }
 
     ctx.translate(-hw, -hh);
 
-    if (done && !sceneTransitioning) {
-      sceneTransitioning = true;
-
-      setTimeout(function() {
-        currentSceneIndex = (currentSceneIndex + 1) % scenes.length;
-        buildScene(currentSceneIndex);
-        sceneTransitioning = false;
-      }, 900);
+    if (
+      balloonPhaseStartedAt !== null &&
+      Date.now() - balloonPhaseStartedAt >= balloonSceneDuration
+    ) {
+      moveToNextScene();
+      balloonPhaseStartedAt = null;
     }
   }
 
