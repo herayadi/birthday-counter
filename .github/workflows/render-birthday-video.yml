@@ -1,0 +1,64 @@
+name: Render birthday video
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/render-birthday-video.yml'
+      - 'scripts/render-video.mjs'
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+
+      - name: Ensure ffmpeg is available
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ffmpeg
+          fi
+
+      - name: Restore final birthday date
+        run: |
+          sed -i "s/2026-09-05T00:00:00+07:00/2026-09-06T00:00:00+07:00/" scripts/index.js
+          sed -i "/Temporary test value/d" scripts/index.js
+          sed -i "/still show a visible 5-second countdown before revealing the gift box\./d" scripts/index.js
+
+      - name: Start local site
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/birthday-http.log 2>&1 &
+          echo $! > /tmp/birthday-http.pid
+          sleep 2
+
+      - name: Render page to MP4
+        run: node scripts/render-video.mjs
+
+      - name: Commit rendered video and cleanup renderer
+        run: |
+          git config user.name "Heri Rahmat"
+          git config user.email "86300210+herayadi@users.noreply.github.com"
+          git add scripts/index.js render/birthday-counter.mp4
+          git rm .github/workflows/render-birthday-video.yml scripts/render-video.mjs
+          git commit -m "Add rendered birthday animation video"
+          git push origin master
